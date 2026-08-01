@@ -1,0 +1,37 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+
+  air-monitor:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    env_file:
+      - .env
+    environment:
+      # /sys/firmware/devicetree is masked in unprivileged containers, so
+      # Blinka's board autodetection can't read /proc/device-tree/model
+      # like it does on the host - force the values it would've found.
+      # (gpiochip0 is the RP1 chip backing the 40-pin header - confirmed via
+      # /sys/bus/gpio/devices/gpiochip0/of_node/compatible = raspberrypi,rp1-gpio;
+      # /dev/gpiochip4 on the host is just a udev symlink to the same device.)
+      BLINKA_FORCECHIP: BCM2XXX
+      BLINKA_FORCEBOARD: RASPBERRY_PI_5
+    devices:
+      - /dev/i2c-1:/dev/i2c-1
+      - /dev/gpiochip0:/dev/gpiochip0
+      - /dev/ttyAMA0:/dev/ttyAMA0
+    volumes:
+      - ./data:/app/data
+
+volumes:
+  mosquitto-data:
+  mosquitto-log:
