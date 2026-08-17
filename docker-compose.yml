@@ -31,6 +31,18 @@ services:
       - /dev/ttyAMA0:/dev/ttyAMA0
     volumes:
       - ./data:/app/data
+    healthcheck:
+      # Unhealthy if any sensor value is missing from the latest reading, or if
+      # readings have stopped arriving. A missing sensor doesn't crash the app,
+      # so process liveness alone wouldn't catch it.
+      test: ["CMD", "python", "-m", "app.healthcheck"]
+      interval: 30s
+      timeout: 10s
+      # The first poll fires before the PMS5003 has produced a frame and the
+      # SGP41 finishes conditioning, so the earliest rows legitimately contain
+      # NULLs - don't start judging until a few polls have gone by.
+      start_period: 120s
+      retries: 3
 
 volumes:
   mosquitto-data:
